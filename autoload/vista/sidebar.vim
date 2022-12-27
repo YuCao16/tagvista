@@ -65,6 +65,7 @@ function! vista#sidebar#OpenOrUpdate(rows) abort
     let g:vista.bufnr = bufnr('%')
     let g:vista.winid = win_getid()
     let g:vista.pos = [winsaveview(), winnr(), winrestcmd()]
+    let g:opened = 0
   else
     let winnr = g:vista.winnr()
     if winnr == -1

@@ -58,6 +58,61 @@ function! s:GenericAutoUpdate(event, bufnr, fpath) abort
   call s:ApplyAutoUpdate(a:fpath)
 endfunction
 
+function s:GenericAutoUpdate_(event, bufnr, fpath) abort
+  if vista#ShouldSkip()
+    return
+  endif
+  if s:find_lspsaga()
+    return
+  endif
+
+  call vista#Debug('event.'.a:event. ' processing auto update for buffer '. a:bufnr)
+  let [bufnr, winnr, fname] = [a:bufnr, winnr(), expand('%')]
+
+  call vista#source#Update(bufnr, winnr, fname, a:fpath)
+
+  " call s:ApplyAutoUpdate(a:fpath)
+  call vista#executive#ctags#AutoUpdate_(a:fpath)
+endfunction
+
+function s:goto_win(winnr, ...) abort
+    "Do not go to a popup window to avoid errors.
+    "Hence, check first if a:winnr is an integer,
+    "if this integer is equal to 0,
+    "the window is a popup window
+    if has('popupwin')
+        if type(a:winnr) == type(0) && a:winnr == 0
+            return
+        endif
+        if a:winnr ==# 'p' && winnr('#') == 0
+            return
+        endif
+    endif
+    let cmd = type(a:winnr) == type(0) ? a:winnr . 'wincmd w'
+                                     \ : 'wincmd ' . a:winnr
+    let noauto = a:0 > 0 ? a:1 : 0
+
+    if noauto
+        noautocmd execute cmd
+    else
+        execute cmd
+    endif
+endfunction
+
+function s:find_lspsaga() abort
+  let buffers = getbufinfo()
+  for buf in buffers
+    let n = buf.bufnr
+    let bftype = getbufvar(n, '&filetype')
+    if bftype == 'lspsagafinder'
+      echo 1
+      return 1
+    endif
+  endfor
+  return 0
+  echo 0
+endfunction
+
 function! s:TriggerUpdate(event, bufnr, fpath) abort
   if s:last_event == [a:event, a:bufnr]
     call vista#Debug('same event for bufnr '.a:bufnr.' was just triggered, ignored for this one')
@@ -73,7 +128,13 @@ function! s:TriggerUpdate(event, bufnr, fpath) abort
     call add(s:did_open, a:bufnr)
   endif
 
-  " call s:GenericAutoUpdate(a:event, a:bufnr, a:fpath)
+  call s:GenericAutoUpdate(a:event, a:bufnr, a:fpath)
+  " let bufnr = bufwinnr(a:fpath)
+  " let ftype = getbufvar(bufnr, '&filetype')
+
+  " call s:GenericAutoUpdate_(a:event, a:bufnr, a:fpath)
+  " call s:goto_win(1)
+  " echo 1
 endfunction
 
 function! s:AutoUpdateWithDelay(bufnr, fpath) abort

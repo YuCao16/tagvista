@@ -152,6 +152,19 @@ function! s:AutoUpdate(fpath) abort
   endif
 endfunction
 
+function! vista#executive#ctags#AutoUpdate_(fpath) abort
+  call vista#Debug('executive::ctags::s:AutoUpdate '.a:fpath)
+  if g:vista.source.filetype() ==# 'markdown'
+        \ && get(g:, 'vista_enable'.&filetype.'_extension', 1)
+    call vista#extension#{&ft}#AutoUpdate(a:fpath)
+  else
+    call vista#OnExecute(s:provider, function('s:AutoUpdate'))
+    let s:reload_only = v:true
+    call vista#Debug('executive::ctags::s:AutoUpdate calling s:ApplyExecute '.a:fpath)
+    call s:ApplyExecute_(v:false, a:fpath)
+  endif
+endfunction
+
 function! vista#executive#ctags#AutoUpdate(fpath) abort
   call vista#OnExecute(s:provider, function('s:AutoUpdate'))
   call s:AutoUpdate(a:fpath)
@@ -312,6 +325,20 @@ function! s:IntoTemp(...) abort
 endfunction
 
 function! s:ApplyExecute(bang, fpath) abort
+  let cmd = s:BuildCmd(a:fpath)
+  if empty(cmd)
+    return
+  endif
+
+  if a:bang || !s:can_async
+    call s:ApplyRun(cmd)
+  else
+    call vista#Debug('executive::ctags::s:ApplyExecute calling s:RunAsyncCommon('.cmd.')')
+    call s:RunAsyncCommon(cmd)
+  endif
+endfunction
+
+function! s:ApplyExecute_(bang, fpath) abort
   let cmd = s:BuildCmd(a:fpath)
   if empty(cmd)
     return
