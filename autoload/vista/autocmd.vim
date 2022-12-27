@@ -7,6 +7,12 @@ let s:update_timer = -1
 let s:did_open = []
 let s:last_event = []
 let s:did_buf_enter = []
+let s:ignore_auto_update = ['popup', 'autocmd']
+
+" Skip special buffers, filetypes.
+function! vista#autocmd#SkipAutoUpdate() abort
+  return index(s:ignore_auto_update, win_gettype()) > -1
+endfunction
 
 function! s:ClearOtherEvents(group) abort
   for augroup in s:registered
@@ -46,7 +52,7 @@ function! s:OnBufDelete(bufnr) abort
 endfunction
 
 function! s:GenericAutoUpdate(event, bufnr, fpath) abort
-  if vista#ShouldSkip()
+  if vista#autocmd#SkipAutoUpdate()
     return
   endif
 
@@ -56,61 +62,6 @@ function! s:GenericAutoUpdate(event, bufnr, fpath) abort
   call vista#source#Update(bufnr, winnr, fname, a:fpath)
 
   call s:ApplyAutoUpdate(a:fpath)
-endfunction
-
-function s:GenericAutoUpdate_(event, bufnr, fpath) abort
-  if vista#ShouldSkip()
-    return
-  endif
-  if s:find_lspsaga()
-    return
-  endif
-
-  call vista#Debug('event.'.a:event. ' processing auto update for buffer '. a:bufnr)
-  let [bufnr, winnr, fname] = [a:bufnr, winnr(), expand('%')]
-
-  call vista#source#Update(bufnr, winnr, fname, a:fpath)
-
-  " call s:ApplyAutoUpdate(a:fpath)
-  call vista#executive#ctags#AutoUpdate_(a:fpath)
-endfunction
-
-function s:goto_win(winnr, ...) abort
-    "Do not go to a popup window to avoid errors.
-    "Hence, check first if a:winnr is an integer,
-    "if this integer is equal to 0,
-    "the window is a popup window
-    if has('popupwin')
-        if type(a:winnr) == type(0) && a:winnr == 0
-            return
-        endif
-        if a:winnr ==# 'p' && winnr('#') == 0
-            return
-        endif
-    endif
-    let cmd = type(a:winnr) == type(0) ? a:winnr . 'wincmd w'
-                                     \ : 'wincmd ' . a:winnr
-    let noauto = a:0 > 0 ? a:1 : 0
-
-    if noauto
-        noautocmd execute cmd
-    else
-        execute cmd
-    endif
-endfunction
-
-function s:find_lspsaga() abort
-  let buffers = getbufinfo()
-  for buf in buffers
-    let n = buf.bufnr
-    let bftype = getbufvar(n, '&filetype')
-    if bftype == 'lspsagafinder'
-      echo 1
-      return 1
-    endif
-  endfor
-  return 0
-  echo 0
 endfunction
 
 function! s:TriggerUpdate(event, bufnr, fpath) abort
@@ -129,12 +80,6 @@ function! s:TriggerUpdate(event, bufnr, fpath) abort
   endif
 
   call s:GenericAutoUpdate(a:event, a:bufnr, a:fpath)
-  " let bufnr = bufwinnr(a:fpath)
-  " let ftype = getbufvar(bufnr, '&filetype')
-
-  " call s:GenericAutoUpdate_(a:event, a:bufnr, a:fpath)
-  " call s:goto_win(1)
-  " echo 1
 endfunction
 
 function! s:AutoUpdateWithDelay(bufnr, fpath) abort
@@ -215,3 +160,17 @@ function! vista#autocmd#InitMOF() abort
     autocmd CursorMoved * call vista#cursor#FindNearestMethodOrFunction()
   augroup END
 endfunction
+
+" function s:find_lspsaga() abort
+"   let buffers = getbufinfo()
+"   for buf in buffers
+"     let n = buf.bufnr
+"     let bftype = getbufvar(n, '&filetype')
+"     if bftype == 'lspsagafinder'
+"       echo 1
+"       return 1
+"     endif
+"   endfor
+"   return 0
+"   echo 0
+" endfunction
